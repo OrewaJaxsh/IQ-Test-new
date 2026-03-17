@@ -724,10 +724,11 @@ body {
   var answers = {};
   var userName = '';
   var userAge = '';
-  var lastShareTime = 0; // ✅ NEW
+  var lastShareTime = 0;
+  var currentStep = 0;
 
   function goToPage(pageName) {
-    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(pageName).classList.add('active');
     window.scrollTo(0, 0);
   }
@@ -736,13 +737,13 @@ body {
     userName = document.getElementById('userName').value.trim();
     userAge = document.getElementById('userAge').value;
     if (userName && userAge !== 'Select age range') {
-      setTimeout(function() { goToPage('question1'); }, 500);
+      setTimeout(() => goToPage('question1'), 500);
     }
   }
 
   function selectOption(qNum, optIdx, element) {
-    var parent = element.parentElement;
-    parent.querySelectorAll('.option').forEach(function(o) { o.classList.remove('selected'); });
+    let parent = element.parentElement;
+    parent.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
     element.classList.add('selected');
     answers[qNum] = optIdx;
   }
@@ -751,36 +752,29 @@ body {
     userName = document.getElementById('userName').value.trim();
     userAge = document.getElementById('userAge').value;
 
-    var correctCount = 0;
-    for (var q in answers) { if (answers[q] === 0) correctCount++; }
-    var percentage = (correctCount / 5) * 100;
-    var score = Math.round(80 + percentage * 0.8);
-    var percentile = Math.round(50 + percentage * 0.4);
+    let correct = 0;
+    for (let q in answers) if (answers[q] === 0) correct++;
 
-    var title, emoji, message;
-    if (percentage === 100) {
-      title = "天才 🔥 [Genius]"; emoji = "🔥"; message = "Perfect score!";
-    } else if (percentage >= 80) {
-      title = "Above Average 😏"; emoji = "😏"; message = "Excellent!";
-    } else if (percentage >= 60) {
-      title = "Hidden Talent 😳"; emoji = "😳"; message = "Good potential!";
-    } else {
-      title = "Keep Growing 📚"; emoji = "📚"; message = "Try again!";
-    }
+    let percent = (correct / 5) * 100;
+    let score = Math.round(80 + percent * 0.8);
+    let percentile = Math.round(50 + percent * 0.4);
 
-    testResults = { emoji, title, message, score, correct: correctCount, percentile };
+    let title = "Keep Growing 📚", emoji = "📚", message = "Try again!";
+    if (percent === 100) { title = "Genius 🔥"; emoji = "🔥"; message = "Perfect score!"; }
+    else if (percent >= 80) { title = "Above Average 😏"; emoji = "😏"; }
+    else if (percent >= 60) { title = "Hidden Talent 😳"; emoji = "😳"; }
 
+    testResults = { emoji, title, message, score, correct, percentile };
+
+    // reset
     shareCount = 0;
+    currentStep = 0;
 
-    ['dot1','dot2','dot3'].forEach(id => {
+    ['dot1','dot2','dot3'].forEach((id,i)=>{
       let el = document.getElementById(id);
-      el.textContent = id.replace('dot','');
+      el.textContent = i+1;
       el.style.background = '#e2e8f0';
       el.style.color = '#718096';
-    });
-
-    ['line1','line2'].forEach(id => {
-      document.getElementById(id).style.background = '#e2e8f0';
     });
 
     document.getElementById('share_btn_1').style.display = 'block';
@@ -791,55 +785,52 @@ body {
     goToPage('shareRequired');
   }
 
-  function shareToWhatsApp(num) {
-    var websiteLink = window.location.href;
+  function shareToWhatsApp(step) {
+    if (step !== currentStep + 1) return;
 
-    var msgs = [
-      "🧠 I just took this IQ test! Try it 👉 " + websiteLink,
-      "🔥 Only 2% pass this IQ test! 👉 " + websiteLink,
-      "🏆 Can you beat my IQ score? 👉 " + websiteLink
+    let link = window.location.href;
+
+    let messages = [
+      "🧠 I just took this IQ test! Try 👉 " + link,
+      "🔥 Only 2% pass this test 👉 " + link,
+      "🏆 Can you beat me? 👉 " + link
     ];
 
     lastShareTime = Date.now();
 
-    window.open('https://wa.me/?text=' + encodeURIComponent(msgs[num - 1]), '_blank');
+    window.open("https://wa.me/?text=" + encodeURIComponent(messages[step-1]), "_blank");
 
-    setTimeout(function() {
-      checkReturnFromWhatsApp(num);
+    // Detect return
+    setTimeout(() => {
+      if (Date.now() - lastShareTime > 2000) {
+        completeStep(step);
+      } else {
+        alert("⚠️ Please complete sharing first!");
+      }
     }, 2000);
   }
 
-  function checkReturnFromWhatsApp(num) {
-    var now = Date.now();
+  function completeStep(step) {
+    currentStep = step;
 
-    if (now - lastShareTime > 2000) {
+    let dot = document.getElementById('dot' + step);
+    dot.textContent = "✅";
+    dot.style.background = "linear-gradient(135deg,#6366f1,#8b5cf6)";
+    dot.style.color = "#fff";
 
-      var dot = document.getElementById('dot' + num);
-      dot.textContent = '✅';
-      dot.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
-      dot.style.color = 'white';
+    let btn = document.getElementById('wa_btn_' + step);
+    btn.disabled = true;
+    btn.style.opacity = "0.5";
+    btn.innerText = "✅ Shared";
 
-      var btn = document.getElementById('wa_btn_' + num);
-      btn.disabled = true;
-      btn.style.opacity = '0.5';
-      btn.textContent = '✅ Shared with Friend ' + num;
-
-      shareCount++;
-
-      if (num === 1) {
-        document.getElementById('line1').style.background = 'linear-gradient(90deg, #6366f1, #8b5cf6)';
-        document.getElementById('share_btn_2').style.display = 'block';
-      } 
-      else if (num === 2) {
-        document.getElementById('line2').style.background = 'linear-gradient(90deg, #8b5cf6, #ec4899)';
-        document.getElementById('share_btn_3').style.display = 'block';
-      } 
-      else if (num === 3) {
-        document.getElementById('viewResultsBtn').style.display = 'block';
-      }
-
-    } else {
-      alert("⚠️ Please complete sharing to unlock results!");
+    if (step === 1) {
+      document.getElementById('share_btn_2').style.display = 'block';
+    }
+    if (step === 2) {
+      document.getElementById('share_btn_3').style.display = 'block';
+    }
+    if (step === 3) {
+      document.getElementById('viewResultsBtn').style.display = 'block';
     }
   }
 
@@ -857,8 +848,8 @@ body {
   }
 
   function shareResultWhatsApp() {
-    var text = "🎉 I scored " + testResults.score + " IQ! Try it 👉 " + window.location.href;
-    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    let text = "🎉 I scored " + testResults.score + " IQ! Try 👉 " + window.location.href;
+    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
   }
 </script>
 
